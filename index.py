@@ -1,77 +1,195 @@
+import pandas as pd
+from pathlib import Path
 from http.server import BaseHTTPRequestHandler
+import html
 
 
 class handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
-        html = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Naukri Job Scraper</title>
-            <style>
-                body {
-                    font-family: Arial, sans-serif;
-                    margin: 40px;
-                    background: #f5f5f5;
-                }
 
-                .container {
-                    max-width: 900px;
-                    margin: auto;
-                    background: white;
-                    padding: 30px;
-                    border-radius: 10px;
-                }
+        try:
+            excel_file = Path(__file__).parent.parent / "naukri_jobs.xlsx"
 
-                h1 {
-                    color: #333;
-                }
+            df = pd.read_excel(excel_file)
 
-                .box {
-                    padding: 20px;
-                    background: #eeeeee;
-                    border-radius: 8px;
-                    margin-top: 20px;
-                }
-            </style>
-        </head>
+            # Replace empty values
+            df = df.fillna("")
 
-        <body>
-            <div class="container">
+            rows = ""
 
-                <h1>Naukri Job Scraper</h1>
+            for _, job in df.iterrows():
 
-                <p>
-                    Python + Playwright Job Scraping Project
-                </p>
+                rows += f"""
+                <tr>
+                    <td>{html.escape(str(job.get("Title", "")))}</td>
+                    <td>{html.escape(str(job.get("Company", "")))}</td>
+                    <td>{html.escape(str(job.get("Location", "")))}</td>
+                    <td>{html.escape(str(job.get("Experience", "")))}</td>
+                    <td>{html.escape(str(job.get("Skills", "")))}</td>
+                    <td>{html.escape(str(job.get("Posted Date", "")))}</td>
+                    <td>
+                        <a href="{html.escape(str(job.get("Job URL", "")))}"
+                           target="_blank">
+                            Apply / View Job
+                        </a>
+                    </td>
+                </tr>
+                """
 
-                <div class="box">
-                    <h2>Project Details</h2>
+            page = f"""
+            <!DOCTYPE html>
+            <html>
 
-                    <p><b>Search:</b> Python Developer</p>
-                    <p><b>Location:</b> Chennai</p>
-                    <p><b>Technology:</b> Python, Playwright, Pandas</p>
-                    <p><b>Output:</b> Excel</p>
+            <head>
 
-                    <p>
-                        The project scrapes job title, company,
-                        location, experience, skills, posted date
-                        and job URL.
-                    </p>
+                <title>Naukri Job Scraper</title>
 
-                    <p>
-                        Duplicate jobs are avoided using the Job URL.
-                    </p>
+                <meta name="viewport"
+                      content="width=device-width, initial-scale=1">
+
+                <style>
+
+                    body {{
+                        font-family: Arial, sans-serif;
+                        margin: 0;
+                        background: #f5f5f5;
+                    }}
+
+                    .header {{
+                        background: #ffffff;
+                        padding: 25px;
+                        text-align: center;
+                        border-bottom: 1px solid #ddd;
+                    }}
+
+                    h1 {{
+                        margin: 0;
+                        color: #222;
+                    }}
+
+                    .subtitle {{
+                        margin-top: 8px;
+                        color: #666;
+                    }}
+
+                    .container {{
+                        padding: 25px;
+                        overflow-x: auto;
+                    }}
+
+                    .count {{
+                        margin-bottom: 15px;
+                        font-size: 18px;
+                        font-weight: bold;
+                    }}
+
+                    table {{
+                        width: 100%;
+                        border-collapse: collapse;
+                        background: white;
+                    }}
+
+                    th {{
+                        background: #333;
+                        color: white;
+                        padding: 12px;
+                        text-align: left;
+                    }}
+
+                    td {{
+                        padding: 10px;
+                        border-bottom: 1px solid #ddd;
+                    }}
+
+                    tr:hover {{
+                        background: #f1f1f1;
+                    }}
+
+                    a {{
+                        color: #0066cc;
+                        text-decoration: none;
+                        font-weight: bold;
+                    }}
+
+                </style>
+
+            </head>
+
+            <body>
+
+                <div class="header">
+
+                    <h1>Naukri Job Scraper</h1>
+
+                    <div class="subtitle">
+                        Python Developer Jobs - Chennai
+                    </div>
+
                 </div>
 
-            </div>
-        </body>
-        </html>
-        """
+                <div class="container">
 
-        self.send_response(200)
-        self.send_header("Content-type", "text/html")
-        self.end_headers()
+                    <div class="count">
+                        Total Jobs: {len(df)}
+                    </div>
 
-        self.wfile.write(html.encode("utf-8"))
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th>Title</th>
+                                <th>Company</th>
+                                <th>Location</th>
+                                <th>Experience</th>
+                                <th>Skills</th>
+                                <th>Posted Date</th>
+                                <th>Job URL</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody>
+
+                            {rows}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+            </body>
+
+            </html>
+            """
+
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "text/html; charset=utf-8"
+            )
+            self.end_headers()
+
+            self.wfile.write(
+                page.encode("utf-8")
+            )
+
+        except Exception as e:
+
+            self.send_response(500)
+            self.send_header(
+                "Content-Type",
+                "text/html; charset=utf-8"
+            )
+            self.end_headers()
+
+            error_page = f"""
+            <h1>Error loading jobs</h1>
+            <p>{html.escape(str(e))}</p>
+            """
+
+            self.wfile.write(
+                error_page.encode("utf-8")
+            )
